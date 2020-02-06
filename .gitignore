@@ -131,3 +131,5 @@ dmypy.json
 # credential file
 keys.py
 .vscode
+current_blocks.csv
+blocklist.zip

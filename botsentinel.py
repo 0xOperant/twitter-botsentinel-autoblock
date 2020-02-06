@@ -5,6 +5,7 @@ import tempfile
 import csv
 import os
 import sys
+import time
 
 # add twitter API keys to keys.py in cwd
 from keys import *
@@ -80,14 +81,22 @@ with zipfile.ZipFile("blocklist.zip","r") as zip_ref:
             print("[*] No changes in this file; moving to the next file")
           for line in fresh:
             try:
-              try:
-                user = api.get_user(line)
-              except tweepy.TweepError as error:
-                print(error.reason)
-              print("[*] Blocking "+user.screen_name)
-              api.create_block(line)
+              user = api.get_user(line)
             except tweepy.TweepError as error:
-              print(error.reason)
+              print(f"[*] User_id {line.rstrip()} error: {error.args[0][0]['message']}")
+              if error.api_code == 88:
+                print("[*] Rate limit reached...sleeping 5 mins")
+                time.sleep(300)
+            else:
+              try:
+                api.create_block(line)
+              except tweepy.TweepError as error:
+                print(f"@{user.screen_name} not blocked: {error.reason}")
+                if error.api_code == 88:
+                  print("[*] Rate limit reached...sleeping 5 mins")
+                  time.sleep(300)
+              else:
+                print("[*] Blocked @" + user.screen_name)
         f.close()
     print("[*] Twitter blocklist successfully updated.")
 
