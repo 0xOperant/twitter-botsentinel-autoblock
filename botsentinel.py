@@ -6,6 +6,7 @@ import csv
 import os
 import sys
 
+# add twitter API keys to keys.py in cwd
 from keys import *
 
 # twitter keys
@@ -34,11 +35,24 @@ try:
   auth.set_access_token(access_token, access_token_secret)
   api = tweepy.API(auth)
 except tweepy.TweepError as error:
+  print(error.reason.message)
+  sys.exit(1)
+
+# get list of accounts already blocked on twitter
+print("[*] Getting list of your current blocks from twitter")
+try:
+  blocks = api.blocks_ids()
+  with open('current_blocks.csv', 'w') as f:
+    for block in blocks:
+      w = csv.writer(f, delimiter=',')
+      w.writerow(str(block).split('\n')) 
+    f.close()
+except tweepy.TweepError as error:
   print(error.reason)
+  sys.exit(1)
 
-print("[*] Getting latest blocklist")
-
-# get block list
+# get block list from botsentinel.com
+print("[*] Getting latest blocklist from botsentinel")
 try:
   r = requests.post(url, data=bot_data)
   r.raise_for_status()
@@ -47,28 +61,38 @@ except requests.exceptions.HTTPError as err:
   sys.exit(1)
 print("[*] Got new zip file from botsentinel")
 open('blocklist.zip', 'wb').write(r.content)
-print("[*] Saved new zip file")
+print("[*] Saved blocklist.zip")
 
 # extract the zip to temporary dir
 with zipfile.ZipFile("blocklist.zip","r") as zip_ref:
   with tempfile.TemporaryDirectory() as directory:
     zip_ref.extractall(directory)
-    print("[*] Extracted new zip file to temporary directory: "+directory)
+    print("[*] Extracted blocklist.zip to temporary directory: "+directory)
 
     # iterate through each row of each list
-    print("[*] Updating twitter blocklist")
+    print("[*] Updating twitter blocklist...this will take a long time")
     for file in os.scandir(directory):
       if (file.path.endswith(".csv") and file.is_file()):
-        for line in open(file):
-          try:
-            api.create_block(line)
-          except tweepy.TweepError as error:
-            print(error.reason)
-
+        old = open('current_blocks.csv', 'r')
+        with open(file) as new:
+          fresh = set(new) - set(old)
+          if not fresh:
+            print("[*] No changes in this file; moving to the next file")
+          for line in fresh:
+            try:
+              try:
+                user = api.get_user(line)
+              except tweepy.TweepError as error:
+                print(error.reason)
+              print("[*] Blocking "+user.screen_name)
+              api.create_block(line)
+            except tweepy.TweepError as error:
+              print(error.reason)
+        f.close()
     print("[*] Twitter blocklist successfully updated.")
 
-print("[*] Cleaning up")
 # clean up zip file
+print("[*] Cleaning up")
 try:
     os.remove("blocklist.zip")
 except OSError:
@@ -78,3 +102,4 @@ else:
 
 # done
 print("[*] Done!")
+sys.exit(0)
