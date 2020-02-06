@@ -84,16 +84,16 @@ with zipfile.ZipFile("blocklist.zip","r") as zip_ref:
               user = api.get_user(line)
             except tweepy.TweepError as error:
               print(f"[*] User_id {line.rstrip()} error: {error.args[0][0]['message']}")
-              if error.api_code == 88:
-                print("[*] Rate limit reached...sleeping 5 mins")
-                time.sleep(300)
+              if error.args[0][0]['code'] == 88:
+                print("[*] Rate limit reached...sleeping 10 mins")
+                time.sleep(600)
             else:
               try:
                 api.create_block(line)
               except tweepy.TweepError as error:
                 print(f"@{user.screen_name} not blocked: {error.reason}")
-                if error.api_code == 88:
-                  print("[*] Rate limit reached...sleeping 5 mins")
+                if error.args[0][0]['code'] == 88:
+                  print("[*] Rate limit reached...sleeping 5 more mins")
                   time.sleep(300)
               else:
                 print("[*] Blocked @" + user.screen_name)
