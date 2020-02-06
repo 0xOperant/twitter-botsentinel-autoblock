@@ -43,6 +43,7 @@ except tweepy.TweepError as error:
 print("[*] Getting list of your current blocks from twitter")
 try:
   blocks = api.blocks_ids()
+  time.sleep(1)
   with open('current_blocks.csv', 'w') as f:
     for block in blocks:
       w = csv.writer(f, delimiter=',')
@@ -82,19 +83,21 @@ with zipfile.ZipFile("blocklist.zip","r") as zip_ref:
           for line in fresh:
             try:
               user = api.get_user(line)
+              time.sleep(1)
             except tweepy.TweepError as error:
-              print(f"[*] User_id {line.rstrip()} error: {error.args[0][0]['message']}")
-              if error.args[0][0]['code'] == 88:
+              if tweepy.RateLimitError:
                 print("[*] Rate limit reached...sleeping 10 mins")
                 time.sleep(600)
+              print(f"[*] User_id {line.rstrip()} error: {error.args[0][0]['message']}") 
             else:
               try:
                 api.create_block(line)
+                time.sleep(1)
               except tweepy.TweepError as error:
-                print(f"@{user.screen_name} not blocked: {error.reason}")
-                if error.args[0][0]['code'] == 88:
+                if tweepy.RateLimitError:
                   print("[*] Rate limit reached...sleeping 5 more mins")
                   time.sleep(300)
+                print(f"@{user.screen_name} not blocked: {error.reason}")
               else:
                 print("[*] Blocked @" + user.screen_name)
         f.close()
